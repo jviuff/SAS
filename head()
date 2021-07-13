@@ -1,0 +1,79 @@
+%macro head(data,number=5,includefirstobs=yes,ncoltab=5);
+%if %sysfunc(exist(&data)) = 0 %then %do; %put ERROR: Data does not exist; 	%goto exit; %end;
+%if &ncoltab >5 %then %do; %put ERROR: ncoltab cant exceed 5; 				%goto exit; %end;
+%if &ncoltab <1 %then %do; %put ERROR: ncoltab cant be less than 1;			%goto exit; %end;
+%let cross164 = ====================================================================================================================================================================;
+
+options LINESIZE=164;
+
+data temp; set &data(obs=&number); run;
+proc contents data=temp out=Contents short noprint; run;
+
+proc sql noprint;
+	select name into :var1 -
+		from contents;
+	select type into :type1 -
+		from contents;
+	select count(*) into :noobs trimmed
+		from contents;
+	%do i=1 %to &noobs;
+		select &&var&i. into :temp&i._1 -
+			from temp;
+	%end;
+quit;
+%let numberofrows = %sysevalf(&noobs/&ncoltab,ceil);
+
+%do i=1 %to &noobs;
+		%do j=1 %to &number;
+			%let tempx&i._&j. = %str(&&temp&i._&j.                                          x);
+		%end;
+	%let varx&i. = %str(&&var&i.                                                     		x);
+	%if &&type&i = 1 %then %do;
+	%let typex&i. = %str((num)                                                     		x);
+	%end;
+	%if &&type&i = 2 %then %do;
+	%let typex&i. = %str((char)                                                     		x);
+	%end;
+%end;
+
+%do nrow=1 %to &numberofrows;
+%let tabtop&nrow =%str(    );
+%let tabsec&nrow =%str(    );
+	%do i=1 %to &number;
+		%if &i < 10 %then %do;
+			%let tab&nrow&i =#&i.%str(  );
+		%end;
+		%else %do;
+			%let tab&nrow&i =#&i.%str( );
+		%end;
+	%end;
+%end;
+
+%do nrow=1 %to &numberofrows;
+	%do i=%sysevalf(&nrow*&ncoltab-(&ncoltab-1)) %to %sysevalf(&nrow*&ncoltab);
+		%if &i < %sysevalf(&noobs+1) %then %do;
+		%let tabtop&nrow = &&tabtop&nrow%qsubstr(&&varx&i.,1,32);
+		%let tabsec&nrow = &&tabsec&nrow%qsubstr(&&typex&i.,1,32);	
+			%do j=1 %to &number;
+				%let tab&nrow&j = &&tab&nrow&j%qsubstr(%quote(&&tempx&i._&j.),1,32);
+			%end;
+		%end;
+	%end;	
+%end;
+
+%if &includefirstobs = yes %then %do;
+	%do nrow=1 %to &numberofrows;
+		%put &cross164; %put &&tabtop&nrow; %put &&tabsec&nrow;
+		%do j=1 %to &number;
+			%put &&tab&nrow&j;
+		%end;
+	%end;
+%end;
+
+%else %do;
+	%put Number of variables: &noobs; %put ;
+	%do nrow=1 %to &numberofrows;
+		%put &&tabtop&nrow; %put &&tabsec&nrow; %put ;
+	%end;
+%end;
+%exit: %mend head;
