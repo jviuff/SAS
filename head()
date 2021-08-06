@@ -1,4 +1,4 @@
-%macro head(data,number=5,includefirstobs=yes,linesize=132);
+%macro head(data,obsnumber=5,includefirstobs=yes,linesize=132);
 %if %sysfunc(exist(&data)) = 0 	%then %do; %put ERROR: Data does not exist; 		%goto exit; %end;
 %if &linesize > 256 		%then %do; %put ERROR: Linesize must be between 64-256;	%goto exit; %end;
 %if &linesize < 64 		%then %do; %put ERROR: Linesize must be between 64-256;	%goto exit; %end;
@@ -10,7 +10,7 @@
 
 options LINESIZE=&linesize; 
 
-data temp; set &data(obs=&number); run;
+data temp; set &data(obs=&obsnumber); run;
 proc contents data=temp out=Contents short noprint; run;
 proc sort data=contents; by varnum; run;
 
@@ -21,6 +21,8 @@ proc sql noprint;
 		from contents;
 	select count(*) into :noobs trimmed
 		from contents;
+	select count(*) into :number trimmed
+		from temp;
 	%do i=1 %to &noobs;
 		select &&var&i. into :temp&i._1 -
 		from temp;
@@ -29,8 +31,8 @@ quit;
 
 %do i=1 %to &noobs;
 	%let leng&i. = %sysevalf(%length(&&var&i.)+1); %if %sysevalf(&&leng&i.) < 7 %then %let leng&i. = 7;
-	%do j=1 %to &number;
-		%if %length(&&temp&i._&j.) >= &&leng&i %then %let temp&i._&j. = %qsubstr(%quote(&&temp&i._&j.),1,%sysevalf(&&leng&i-2))~ ;
+	%do j=1 %to &number; 
+		%if %length(%nrbquote(&&temp&i._&j.)) >= &&leng&i %then %do; %let temp&i._&j. = %qsubstr(%nrbquote(&&temp&i._&j.),1,%sysevalf(&&leng&i-2))~ ; %end;
 		%let tempx&i._&j. = %str(&&temp&i._&j.                                          	x);
 	%end;
 	%let varx&i. = %str(&&var&i.                                                     		x);
@@ -76,12 +78,13 @@ quit;
 	%let tabtop&nrow = &&tabtop&nrow%qsubstr(&&varx&i.,1,&&leng&i);
 	%let tabsec&nrow = &&tabsec&nrow%qsubstr(&&typex&i.,1,&&leng&i);	
 		%do j=1 %to &number;
-			%let tab&nrow&j = &&tab&nrow&j%qsubstr(%quote(&&tempx&i._&j.),1,&&leng&i);
+			%let tab&nrow&j = &&tab&nrow&j%qsubstr(%nrbquote(&&tempx&i._&j.),1,&&leng&i);
 		%end;
 	%end;	
 	%let whatcol = %sysevalf(&whatcol+1);
 %end;
 
+%put Table: &data;
 %if &includefirstobs = yes %then %do;
 	%do nrow=1 %to &numberofrows;
 		%put &alotequal; %put &&tabtop&nrow; %put &&tabsec&nrow;
@@ -99,4 +102,4 @@ quit;
 %end;
 %exit: %mend head;
 
-%head(sashelp.baseball,includefirstobs=yes,number=5,linesize=90);
+%head(sashelp.baseball,obsnumber=5,includefirstobs=yes,linesize=90);
