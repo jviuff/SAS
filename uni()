@@ -1,0 +1,16 @@
+%macro uni(data, var);
+proc sql noprint;
+	select count(distinct &var) into :unique trimmed from &data;
+	select count(*) into :noobs trimmed from &data;
+	select sum(missing(&var)) into :miss trimmed from &data;
+quit;
+%let percent = %sysevalf(&miss/&noobs*100,floor);
+%put #########################################################;
+%if %sysevalf(&noobs-&unique) = 0 %then %do; %put WARNING- All observations are unique!; %end;
+%else %put ERROR- All observations are NOT unique;
+%put #########################################################;
+%put ##### &noobs number of observations in &data;
+%put ##### &unique unique values of &var;
+%put ##### &miss missing values of &var (&percent.% of all obs);
+%put #########################################################;
+%mend;
