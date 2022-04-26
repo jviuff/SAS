@@ -3,7 +3,7 @@
 
 	%do i=1 %to %sysfunc(countw(&find,~));
 		%do j=1 %to %sysfunc(countw(&in,~));
-			%if %scan(&find,&i,"~")=%scan(&in,&j,"~") %then %goto udafloop;
+			%if %nrquote(%scan(&find,&i,"~")) = %nrquote(%scan(&in,&j,"~")) %then %goto udafloop;
 		%end;
 		%let notfound = &notfound %scan(&find,&i,"~") ;
 		%let founddum = 1;
@@ -14,3 +14,12 @@
 %if %symexist(founddum) %then %put ERROR: &notfound;
 %if %sysfunc(countw(&find,~)) < %sysfunc(countw(&in,~)) %then %put ERROR: More codes found than specified;
 %mend assert;
+
+proc sql noprint;
+	select distinct type into :indata separated by '~'
+	from sashelp.cars;
+quit;
+
+%let findthese = sedan~suv;
+
+%assert(&findthese,&indata);
